@@ -6,7 +6,13 @@ import asyncio
 import sys
 import zipfile
 import pandas as pd
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+try:
+    from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+    sync_playwright = None
+    PlaywrightTimeoutError = Exception
 import database
 import utils
 def ensure_playwright():
