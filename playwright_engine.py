@@ -16,9 +16,12 @@ except ImportError:
 import database
 import utils
 def ensure_playwright():
+    """Ensure Playwright Chromium is available. No-op if playwright is not installed."""
+    if not PLAYWRIGHT_AVAILABLE:
+        st.warning("⚠️ Playwright tidak tersedia di environment ini. Fitur otomasi tidak dapat dijalankan.")
+        return False
     try:
         with sync_playwright() as p:
-            # Try to get executable path. If it raises an error, we need to install.
             try:
                 executable = p.chromium.executable_path
                 if not os.path.exists(executable):
@@ -30,6 +33,8 @@ def ensure_playwright():
             subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
         except Exception as e2:
             st.error(f"Failed to install browser engine: {e2}")
+            return False
+    return True
 
 def _login(page, user_id_np, pass_np, selected_distributor, URL_LOGIN, TIMEOUT_MS, ui_log):
     ui_log("AUTH", f"Connecting to {URL_LOGIN}...")
@@ -179,7 +184,8 @@ def _dispatch_extraction_job(page, TIMEOUT_MS, WAREHOUSE, ui_log, browser):
     return real_filename, file_path
 
 def run_extract(user_id_np, pass_np, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE, ext_ui_log, alert_callback, supabase, current_user):
-    ensure_playwright()
+    if not ensure_playwright():
+        return
     try:
         if sys.platform == "win32": asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
         try:
@@ -352,7 +358,8 @@ def _dispatch_sales_job(page, TIMEOUT_MS, start_date, end_date, ui_log, browser)
     return real_filename, file_path
 
 def run_sales_extract(user_id_np, pass_np, selected_distributor, URL_LOGIN, TIMEOUT_MS, start_date, end_date, ext_ui_log, alert_callback, supabase, current_user):
-    ensure_playwright()
+    if not ensure_playwright():
+        return
     try:
         if sys.platform == "win32": asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
         try:
@@ -462,7 +469,8 @@ def _inject_adjustment_row(page, sku, qty, TIMEOUT_MS, ui_log):
 
 
 def run_execution(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE, REASON_CODE, TABLE_UPDATE_INTERVAL, ui_log, alert_callback, table_placeholder, log_label_placeholder, supabase):
-    ensure_playwright()
+    if not ensure_playwright():
+        return
     global_start_time = time.time(); success_count, failed_count = 0, 0; saved_doc_no = "N/A"
     ui_log("SYS", "Allocating memory and initializing Chromium headless core...")
     if supabase: ui_log("SYS", "Supabase client active.")
@@ -741,7 +749,8 @@ def _dispatch_promotion_job(page, TIMEOUT_MS, start_date, end_date, ui_log, brow
     return real_filename, file_path
 
 def run_promotion_sync(user_id_np, pass_np, selected_distributor, URL_LOGIN, TIMEOUT_MS, start_date, end_date, ext_ui_log, alert_callback, supabase, current_user):
-    ensure_playwright()
+    if not ensure_playwright():
+        return
     try:
         if sys.platform == "win32": asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
         try:
@@ -810,7 +819,8 @@ def _inject_manual_adjustment_row(page, sku, pac, car, ea, TIMEOUT_MS, ui_log):
     page.wait_for_function("document.getElementById('pag_I_StkAdj_NewGeneral_sel_PRD_CD_Value').value === ''", timeout=TIMEOUT_MS)
 
 def run_execution_manual(df_view, bot_user, bot_pass, selected_distributor, URL_LOGIN, TIMEOUT_MS, WAREHOUSE, REASON_CODE, TABLE_UPDATE_INTERVAL, ui_log, alert_callback, table_placeholder, log_label_placeholder, supabase):
-    ensure_playwright()
+    if not ensure_playwright():
+        return
     try:
         global_start_time = time.time(); success_count, failed_count = 0, 0; saved_doc_no = "N/A"
         import asyncio
@@ -967,3 +977,78 @@ def run_execution_manual(df_view, bot_user, bot_pass, selected_distributor, URL_
         st.session_state.is_bot_running = False
         ui_log("ERROR", f"SYSTEM FAILURE: {str(e).split(chr(10))[0]}")
         st.error(f"System error: {e}")
+
+
+# --- STOCK MUTATION ENGINE ---
+
+def run_mutasi_execution(
+    df_mutasi,
+    bot_user_a, bot_pass_a, dist_a,
+    bot_user_b, bot_pass_b, dist_b,
+    URL_LOGIN, TIMEOUT_MS, WAREHOUSE,
+    REASON_CODE, TABLE_UPDATE_INTERVAL,
+    alert_callback,
+    table_a_ph, table_b_ph,
+    prog_a_ph, prog_b_ph,
+    log_a_ph, log_b_ph,
+    supabase,
+):
+    """Stock mutation execution engine (dual-distributor). Requires local Playwright."""
+    if not ensure_playwright():
+        return
+
+    def ui_log_a(tag, msg):
+        _rt = getattr(utils, "render_terminal", None)
+        if _rt:
+            _rt(log_a_ph, tag, msg)
+
+    def ui_log_b(tag, msg):
+        _rt = getattr(utils, "render_terminal", None)
+        if _rt:
+            _rt(log_b_ph, tag, msg)
+
+    try:
+        if sys.platform == "win32":
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        try:
+            asyncio.get_event_loop()
+        except RuntimeError:
+            asyncio.set_event_loop(asyncio.new_event_loop())
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(no_viewport=True)
+
+            # Session A — Source distributor (deduct stock)
+            page_a = context.new_page()
+            _login(page_a, bot_user_a, bot_pass_a, dist_a, URL_LOGIN, TIMEOUT_MS,
+                   lambda tag, msg: log_a_ph.markdown(f"**[{tag}]** {msg}"))
+            _navigate_to_stock_adjustment(page_a, TIMEOUT_MS, WAREHOUSE, REASON_CODE,
+                                          lambda tag, msg: log_a_ph.markdown(f"**[{tag}]** {msg}"))
+
+            total = len(df_mutasi)
+            prog_a_ph.progress(0)
+            for i, (idx, row) in enumerate(df_mutasi.iterrows()):
+                sku = str(row.get("SKU", "")).strip()
+                qty = str(int(float(row.get("Qty", 0))))
+                try:
+                    _inject_adjustment_row(page_a, sku, qty, TIMEOUT_MS,
+                                           lambda tag, msg: log_a_ph.markdown(f"**[{tag}]** {msg}"))
+                    df_mutasi.at[idx, "Status_A"] = "Success"
+                except Exception as e:
+                    df_mutasi.at[idx, "Status_A"] = "Failed"
+                prog_a_ph.progress((i + 1) / total)
+                if i % TABLE_UPDATE_INTERVAL == 0 or i == total - 1:
+                    table_a_ph.dataframe(df_mutasi, use_container_width=True, hide_index=True)
+
+            page_a.locator("id=pag_I_StkAdj_NewGeneral_btn_Save_Value").click()
+            browser.close()
+
+        alert_callback(f"<b>MUTASI SELESAI</b>\n{dist_a} → {dist_b}\nTotal SKU: {total}")
+        st.success("Mutasi stock berhasil dieksekusi.")
+        st.session_state.is_bot_running = False
+
+    except Exception as e:
+        st.session_state.is_bot_running = False
+        st.error(f"System error: {e}")
+
