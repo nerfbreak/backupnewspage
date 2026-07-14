@@ -151,7 +151,10 @@ def _dispatch_extraction_job(page, TIMEOUT_MS, WAREHOUSE, ui_log, browser):
     
     ui_log("INJECT", "Setting file type: Delimited [D], separator: standard...")
     page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FILE_TYPE_Value").select_option("D")
-    page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0").check()
+    page.wait_for_timeout(1500)
+    sep_radio = page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0")
+    sep_radio.wait_for(state="visible", timeout=max(TIMEOUT_MS, 60000))
+    sep_radio.check()
     page.wait_for_timeout(2000)
     
     ui_log("INJECT", f"Applying warehouse filter: [{WAREHOUSE}]...")
@@ -292,7 +295,9 @@ def _dispatch_sales_job(page, TIMEOUT_MS, start_date, end_date, ui_log, browser)
     ui_log("INJECT", f"Applying parameters: {start_date} to {end_date}")
     page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FILE_TYPE_Value").select_option("D")
     page.wait_for_timeout(1500)
-    page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0").check()
+    sep_radio_s = page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0")
+    sep_radio_s.wait_for(state="visible", timeout=max(TIMEOUT_MS, 60000))
+    sep_radio_s.check()
     page.wait_for_timeout(1500)
     page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_grd_DynamicFilter_ctl13_dyn_Field_drp_Value").select_option("Invoiced")
     ui_log("SYS", "Waiting for server to apply Invoiced filter (PostBack)...")
@@ -690,7 +695,10 @@ def _dispatch_promotion_job(page, TIMEOUT_MS, start_date, end_date, ui_log, brow
         
         ui_log("INJECT", f"[{i+1}/{len(promo_ids)}] Setting file params and dates...")
         page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FILE_TYPE_Value").select_option("D")
-        page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0").check()
+        page.wait_for_timeout(1500)
+        sep_radio_p = page.locator("id=pag_FW_SYS_INTF_JOB_DTL_PopupNew_FLD_SEPARATOR_STD_Value_0")
+        sep_radio_p.wait_for(state="visible", timeout=max(TIMEOUT_MS, 60000))
+        sep_radio_p.check()
         
         # JS Date Injection
         sd_d, sd_m, sd_y = start_date.split('/')
