@@ -169,7 +169,7 @@ def _dispatch_extraction_job(page, TIMEOUT_MS, WAREHOUSE, ui_log, browser):
     page.locator("id=pag_FW_SYS_INTF_JOB_RootNew_btn_Save_Value").click(force=True)
     
     ui_log("SERVER", "Awaiting server confirmation prompt...")
-    page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
+    page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=max(TIMEOUT_MS, 300000))
     page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
     
     ui_log("SERVER", "Intercepting download link — this may take up to 4 minutes...")
@@ -345,7 +345,7 @@ def _dispatch_sales_job(page, TIMEOUT_MS, start_date, end_date, ui_log, browser)
     page.wait_for_timeout(2000)
     
     ui_log("SERVER", "Awaiting server confirmation prompt...")
-    page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
+    page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=max(TIMEOUT_MS, 300000))
     page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
     
     ui_log("SERVER", "Awaiting file synthesis...")
@@ -739,7 +739,7 @@ def _dispatch_promotion_job(page, TIMEOUT_MS, start_date, end_date, ui_log, brow
     page.wait_for_timeout(2000)
     
     ui_log("SERVER", "Awaiting server confirmation...")
-    page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=TIMEOUT_MS)
+    page.locator("id=TF_Prompt_btn_Ok_Value").wait_for(state="visible", timeout=max(TIMEOUT_MS, 300000))
     page.locator("id=TF_Prompt_btn_Ok_Value").click(force=True)
     
     ui_log("SERVER", "Intercepting batch download...")
