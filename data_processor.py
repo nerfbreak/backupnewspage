@@ -4,7 +4,7 @@ import streamlit as st
 from utils import safe_parse_numeric
 
 def load_data(file):
-    if file is None: 
+    if file is None or not hasattr(file, 'name'): 
         return None
         
     filename = file.name.lower()
