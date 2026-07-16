@@ -66,6 +66,8 @@ def encrypt_data(data: str) -> str:
 
 def decrypt_data(encrypted_data: str) -> str:
     if not encrypted_data: return ""
+    if not encrypted_data.startswith("gAAAAA"):
+        return encrypted_data  # Sudah plaintext
     try:
         f = Fernet(get_encryption_key())
         return f.decrypt(encrypted_data.encode()).decode()
